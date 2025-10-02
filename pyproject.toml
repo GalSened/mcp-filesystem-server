@@ -1,0 +1,12 @@
+[project]
+name = "mcp-filesystem-server"
+version = "0.1.0"
+description = "Safe-by-default MCP server for filesystem + optional command execution"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "fastmcp>=0.2.0",
+]
+
+[tool.ruff]
+line-length = 100

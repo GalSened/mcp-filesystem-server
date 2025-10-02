@@ -1,0 +1,12 @@
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+startCommand = "python server.py"
+healthcheckPath = "/mcp"
+
+[env]
+MCP_TRANSPORT = "http"
+MCP_HTTP_PORT = "8080"
+MCP_HTTP_PATH = "/mcp"
+ENABLE_RUN_COMMANDS = "0"
