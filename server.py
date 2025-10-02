@@ -20,14 +20,15 @@ Env:
 """
 from __future__ import annotations
 import os, io, glob, shutil, time, subprocess
+from pathlib import PurePath
 from typing import List, Dict, Any, Optional
-from fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 # ---------- Configuration ----------
 ROOT_DIR = os.environ.get("MCP_FS_ROOT", os.path.abspath("./sandbox"))
 ENABLE_RUN_COMMANDS = os.environ.get("ENABLE_RUN_COMMANDS", "0") == "1"
 
-ALLOW_GLOBS: List[str] = ["**/*"]
+ALLOW_GLOBS: List[str] = ["*", "**/*"]
 DENY_GLOBS:  List[str] = [
     "**/.env*", "**/.ssh/**", "**/.git/**", "**/node_modules/**", "**/id_*"
 ]
@@ -55,12 +56,12 @@ def _abs(path: str) -> str:
 def _deny_check(abs_path: str) -> None:
     rel = os.path.relpath(abs_path, ROOT_DIR)
     for pat in DENY_GLOBS:
-        if glob.fnmatch.fnmatch(rel, pat):
+        if PurePath(rel).match(pat):
             raise PermissionError(f"Denied by policy: {pat}")
 
 def _allow_check(abs_path: str) -> None:
     rel = os.path.relpath(abs_path, ROOT_DIR)
-    if not any(glob.fnmatch.fnmatch(rel, pat) for pat in ALLOW_GLOBS):
+    if not any(PurePath(rel).match(pat) for pat in ALLOW_GLOBS):
         raise PermissionError("Not allowed by policy")
 
 def _policy(abs_path: str) -> None:
@@ -70,7 +71,7 @@ def _policy(abs_path: str) -> None:
 # ---------- MCP ----------
 mcp = FastMCP("mcp-filesystem")
 
-@mcp.tool
+@mcp.tool()
 def list_dir(path: str = ".", glob_pattern: str = "*", include_hidden: bool = False) -> Dict[str, Any]:
     """List directory entries under sandbox root."""
     ensure_root()
@@ -98,7 +99,7 @@ def list_dir(path: str = ".", glob_pattern: str = "*", include_hidden: bool = Fa
             continue
     return {"path": os.path.relpath(ap, ROOT_DIR), "entries": out}
 
-@mcp.tool
+@mcp.tool()
 def read_text(path: str, encoding: str = "utf-8") -> Dict[str, Any]:
     """Read a text file."""
     ensure_root()
@@ -108,7 +109,7 @@ def read_text(path: str, encoding: str = "utf-8") -> Dict[str, Any]:
     with io.open(ap, "r", encoding=encoding, errors="strict") as f:
         return {"path": os.path.relpath(ap, ROOT_DIR), "content": f.read()}
 
-@mcp.tool
+@mcp.tool()
 def write_text(path: str, content: str, create_dirs: bool = True, overwrite: bool = True, encoding: str = "utf-8") -> Dict[str, Any]:
     """Write text to a file (safe under ROOT)."""
     ensure_root()
@@ -122,7 +123,7 @@ def write_text(path: str, content: str, create_dirs: bool = True, overwrite: boo
         f.write(content)
     return {"written": True, "path": os.path.relpath(ap, ROOT_DIR), "bytes": len(content.encode(encoding))}
 
-@mcp.tool
+@mcp.tool()
 def mkdir(path: str, parents: bool = True, exist_ok: bool = True) -> Dict[str, Any]:
     """Create a directory under ROOT."""
     ensure_root()
@@ -133,7 +134,7 @@ def mkdir(path: str, parents: bool = True, exist_ok: bool = True) -> Dict[str, A
         os.mkdir(ap)
     return {"created": True, "path": os.path.relpath(ap, ROOT_DIR)}
 
-@mcp.tool
+@mcp.tool()
 def mv(src: str, dst: str, overwrite: bool = False) -> Dict[str, Any]:
     """Move/rename file/dir within ROOT."""
     ensure_root()
@@ -150,7 +151,7 @@ def mv(src: str, dst: str, overwrite: bool = False) -> Dict[str, Any]:
     shutil.move(aps, apd)
     return {"moved": True, "src": os.path.relpath(aps, ROOT_DIR), "dst": os.path.relpath(apd, ROOT_DIR)}
 
-@mcp.tool
+@mcp.tool()
 def rm(path: str, recursive: bool = False) -> Dict[str, Any]:
     """Remove file/dir under ROOT."""
     ensure_root()
@@ -163,7 +164,7 @@ def rm(path: str, recursive: bool = False) -> Dict[str, Any]:
         os.remove(ap)
     return {"removed": True, "path": os.path.relpath(ap, ROOT_DIR)}
 
-@mcp.tool
+@mcp.tool()
 def stat(path: str) -> Dict[str, Any]:
     """Return basic stat() for a path under ROOT."""
     ensure_root()
@@ -177,7 +178,7 @@ def stat(path: str) -> Dict[str, Any]:
         "mtime": int(st.st_mtime),
     }
 
-@mcp.tool
+@mcp.tool()
 def run(cmd: str, args: Optional[list] = None, cwd: str = ".", timeout_sec: int = RUN_TIMEOUT_SEC) -> Dict[str, Any]:
     """(Optional) Run an allowlisted command with timeouts/stdout cap."""
     if not ENABLE_RUN_COMMANDS:
